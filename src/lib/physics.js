@@ -76,12 +76,19 @@ export function calcPhysics(cfg){
   if(pas.crumple>=3&&hit)ctrs.push({ok:true,t:`Crumple zones (${pas.crumple}star) absorbed ${Math.round(crAbs*100)}% of KE`});
   if(!pas.belt)ctrs.push({ok:false,t:'No seatbelt — fatality risk multiplier applied'});
   if(!pas.frontBag)ctrs.push({ok:false,t:'No front airbags — head and chest unprotected'});
+  if(typology==='ev_ice'){
+    const {isEV}=cfg;
+    ctrs.push({ok:!!isEV,t:isEV
+      ?'HV battery isolation active — pyrofuse disconnected HV bus on impact detection'
+      :'HV battery isolation not applicable — vehicle is ICE; opponent EV electrical status unknown to first responders'});
+    if(isEV) ctrs.push({ok:false,t:'Thermal runaway risk window extends up to 72 hours — mandatory post-crash battery thermal monitoring'});
+  }
   return {mu,dR,dB,dTot,dAvail,vImp,vImpK,hit,KE,crAbs,dvK,fRisk,inj,headR,chestR,spineR,causes,recs,ctrs,absGn,rxT,obsDist,hydro,safeV};
 }
 
 export function genNarrative(res,cfg,typ){
   if(!res.hit){
-    return `Vehicle came to a controlled stop ${(res.dTot-cfg.obsDist).toFixed(1)} m before the obstacle. ${cfg.sys.aeb?'AEB pre-braking contributed significantly to the early deceleration. ':''} ${cfg.sys.abs?'ABS maintained steering authority throughout the braking phase. ':''}No passive systems were deployed. Field investigators would find no deformation evidence and clean tire contact patches indicating controlled braking. EDR data would show nominal deceleration curve within design parameters.`;
+    return `Vehicle came to a controlled stop ${(cfg.obsDist-res.dTot).toFixed(1)} m before the obstacle. ${cfg.sys.aeb?'AEB pre-braking contributed significantly to the early deceleration. ':''} ${cfg.sys.abs?'ABS maintained steering authority throughout the braking phase. ':''}No passive systems were deployed. Field investigators would find no deformation evidence and clean tire contact patches indicating controlled braking. EDR data would show nominal deceleration curve within design parameters.`;
   }
   const sev=res.vImpK>80?'high-energy':res.vImpK>40?'moderate-energy':'low-energy';
   return `Field investigation indicates a ${sev} ${typ.name.toLowerCase()} at ${res.vImpK.toFixed(1)} km/h. ${!cfg.sys.aeb?'No pre-crash autonomous braking was available. ':'AEB partially reduced approach speed before impact. '}${!cfg.pas.belt?'Absence of seatbelt restraint will be cited as a primary contributing factor to occupant injury severity. ':'Seatbelt webbing marks on the occupant\'s clothing confirm belt engagement at crash onset. '}${res.hydro?'Tire contact patch evidence is consistent with aquaplaning: uniform surface contact with no lateral deformation, indicating near-zero friction at impact. ':''}Crumple zone deformation depth is consistent with the recorded impact velocity. ${typ.invNote}`;

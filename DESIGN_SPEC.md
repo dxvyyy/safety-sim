@@ -1,7 +1,8 @@
 # Car Safety Sandbox Simulator — Design Specification
 
 **Project:** Chasing Horsepower 2026 · LEAF Academy Term E
-**Version:** 1.0
+**Version:** 1.1
+**Changelog:** v1.1 raised the type scale, icon sizes, and content widths to fix a cramped-column feel on laptop screens (see §3 sizing intent and §4 content width). v1.0 established the full system.
 **Purpose:** This is the single source of truth for the visual and interaction design of the simulator. Every screen, component, color, and motion rule is defined here. Build against this document. When something is unspecified, follow the *spirit* stated in the Design Philosophy rather than inventing a new pattern.
 
 ---
@@ -91,18 +92,22 @@ Out of scope for v1. The contrast arc (light ↔ warm dark) is the design; a sep
 
 Load **Inter** for UI text and **IBM Plex Mono** for data readouts (both via Google Fonts). Two weights only: 400 (regular) and 500 (medium). Never use 600+ — it reads heavy. Sentence case everywhere; never Title Case, never ALL CAPS except eyebrow labels.
 
+**Sizing intent:** the scale below was raised in v1.1 to give content more presence on a laptop screen. The earlier scale read cramped — small text in a narrow column left the interface feeling thin, not calm. Calm comes from *generously sized content with rhythm between elements*, not from small text floating in wide margins. Err toward the larger end of each range on desktop.
+
 | Role | Font | Size | Weight | Spacing | Notes |
 |---|---|---|---|---|---|
-| Display (hero) | Inter | 40–56px | 500 | -0.5px | Launch screen only; scales down on mobile |
-| H1 (screen title) | Inter | 24px | 500 | -0.2px | One per screen |
-| H2 (section) | Inter | 18px | 500 | 0 | |
-| Body | Inter | 15–16px | 400 | 0 | line-height 1.7 |
-| Eyebrow label | Inter | 12px | 500 | 1.5px | UPPERCASE, `--ink-tertiary` |
-| Metric number | IBM Plex Mono | 32–40px | 500 | -0.5px | Big quiet numbers (stats, impact speed) |
-| Data readout | IBM Plex Mono | 13px | 400 | 0 | Physics values, distances |
-| Caption | Inter | 12–13px | 400 | 0 | `--ink-tertiary` |
+| Display (hero) | Inter | 48–60px | 500 | -1px | Launch headline. Use `clamp(40px, 5.5vw, 60px)` so it scales with viewport. Large and confident, fills the upper screen, but balanced — not shouty. Must let "Every crash is a conversation between physics and engineering" land in 2 lines on a laptop, not 4. line-height 1.12 |
+| H1 (screen title) | Inter | 30px | 500 | -0.3px | One per screen |
+| H2 (section) | Inter | 20px | 500 | 0 | |
+| Body | Inter | 17px | 400 | 0 | line-height 1.7 |
+| Eyebrow label | Inter | 13px | 500 | 1.5px | UPPERCASE, `--ink-tertiary` |
+| Metric number | IBM Plex Mono | 40–48px | 500 | -0.5px | Big quiet numbers (stats, impact speed). Use `clamp(36px, 4vw, 48px)`. |
+| Data readout | IBM Plex Mono | 14px | 400 | 0 | Physics values, distances |
+| Caption | Inter | 13–14px | 400 | 0 | `--ink-tertiary` |
 
 The **eyebrow + big-number + caption** stack is a signature pattern (e.g. "IMPACT SPEED" / "42 km/h" / "above pedestrian fatality threshold"). Reuse it for all headline metrics.
+
+**Icons:** size with the text they sit beside. Selectable-card and section icons at 26–28px (up from 22). Inline/row icons at 18–20px. Icons should feel like a confident part of the composition, not tiny decorations.
 
 ---
 
@@ -113,7 +118,17 @@ The **eyebrow + big-number + caption** stack is a signature pattern (e.g. "IMPAC
 - Component-internal gaps: 8, 12, 16px
 - Vertical section rhythm: 24, 32, 48px
 - Screen outer padding: 32px desktop, 20px mobile
-- Max content width: 640px for single-column reading screens (Builder, Preview, Results narrative); full-bleed for the Simulation stage.
+
+### Content width — the balance principle (revised v1.1)
+
+The earlier 640px column read as cramped on a laptop: a thin strip of content with large empty side margins. That is *not* calm — calm is generously sized content with whitespace as rhythm *between* elements, not vast empty borders flanking a narrow column. Widen the reading column and let the larger type fill it.
+
+- **Single-column reading screens** (Builder, Preview, Results narrative): max-width **820px**.
+- **Multi-card / multi-column screens** (Preview's three cards, Results' two-column body): max-width **1040px**.
+- **Launch hero:** the headline block may run up to **900px** so the statement lands in 1–2 confident lines and sits centered and anchored, not forced upward. Vertically center the composition.
+- **Simulation stage:** full-bleed.
+
+The goal is balance: content should feel substantial and in command of the screen, with breathing room between elements — never a tiny column adrift in margin, never edge-to-edge clutter.
 
 ### Radii
 

@@ -13,7 +13,7 @@ function Eyebrow({ children, color = 'var(--ink-tertiary)' }) {
   return (
     <div style={{
       fontFamily: 'var(--font-sans)',
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: 500,
       letterSpacing: '1.5px',
       textTransform: 'uppercase',
@@ -44,19 +44,19 @@ function ConfigRow({ label, value, mono = false }) {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'baseline',
-      padding: '5px 0',
+      padding: '6px 0',
       borderBottom: '0.5px solid var(--hairline)',
     }}>
       <span style={{
         fontFamily: 'var(--font-sans)',
-        fontSize: 13,
+        fontSize: 14,
         color: 'var(--ink-secondary)',
       }}>
         {label}
       </span>
       <span style={{
         fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
-        fontSize: 13,
+        fontSize: 14,
         color: 'var(--ink)',
       }}>
         {value}
@@ -152,28 +152,28 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
       {/* ── Content ─────────────────────────────────────────────────────────── */}
       <main style={{ flex: 1, overflowY: 'auto', padding: mobile ? '32px 20px' : '40px 32px' }}>
         <div style={{
-          maxWidth: 640,
+          maxWidth: 1040,
           margin: '0 auto',
           display: 'flex',
           flexDirection: 'column',
-          gap: 24,
+          gap: 32,
         }}>
 
           {/* Page intro */}
           <div>
             <h1 style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 24,
+              fontSize: 30,
               fontWeight: 500,
-              letterSpacing: '-0.2px',
+              letterSpacing: '-0.3px',
               color: 'var(--ink)',
-              margin: '0 0 8px',
+              margin: '0 0 10px',
             }}>
               Ready to simulate
             </h1>
             <p style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 15,
+              fontSize: 17,
               fontWeight: 400,
               lineHeight: 1.7,
               color: 'var(--ink-secondary)',
@@ -213,7 +213,7 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
               </div>
               <div style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 15,
+                fontSize: 17,
                 fontWeight: 500,
                 color: 'var(--ink)',
                 marginBottom: 8,
@@ -223,7 +223,7 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
               </div>
               <div style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 13,
+                fontSize: 14,
                 lineHeight: 1.6,
                 color: 'var(--ink-secondary)',
               }}>
@@ -248,7 +248,7 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
                 <div style={{ marginTop: 12 }}>
                   <div style={{
                     fontFamily: 'var(--font-sans)',
-                    fontSize: 12,
+                    fontSize: 13,
                     color: 'var(--ink-tertiary)',
                     marginBottom: 6,
                   }}>
@@ -279,7 +279,7 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
               <Eyebrow>Real-world match</Eyebrow>
               <div style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 15,
+                fontSize: 17,
                 fontWeight: 500,
                 color: 'var(--ink)',
                 marginBottom: 8,
@@ -289,12 +289,12 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
               </div>
               {vehicle.stars > 0 ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                  <span style={{ color: 'var(--warn)', fontSize: 13, letterSpacing: 1 }}>
+                  <span style={{ color: 'var(--warn)', fontSize: 14, letterSpacing: 1 }}>
                     {'★'.repeat(vehicle.stars)}
                   </span>
                   <span style={{
                     fontFamily: 'var(--font-sans)',
-                    fontSize: 11,
+                    fontSize: 12,
                     color: 'var(--ink-tertiary)',
                   }}>
                     {vehicle.src}
@@ -303,7 +303,7 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
               ) : (
                 <div style={{
                   fontFamily: 'var(--font-sans)',
-                  fontSize: 12,
+                  fontSize: 13,
                   color: 'var(--ink-tertiary)',
                   marginBottom: 10,
                 }}>
@@ -314,7 +314,7 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
               <ConfigRow label="AEB"  value={vehicle.aeb ? 'Standard' : 'Not fitted'} />
               <p style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 12,
+                fontSize: 13,
                 fontStyle: 'italic',
                 lineHeight: 1.5,
                 color: 'var(--ink-secondary)',
@@ -323,10 +323,10 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
                 {vehicle.note}
               </p>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--ink-tertiary)' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--ink-tertiary)' }}>
                   Configuration match
                 </span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 500, color: 'var(--ink)' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 500, color: 'var(--ink)' }}>
                   {pct}%
                 </span>
               </div>
@@ -351,19 +351,19 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
               <Eyebrow color={sem.text}>Predicted outcome</Eyebrow>
               <div style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: 500,
                 color: sem.text,
                 marginBottom: 6,
                 lineHeight: 1.3,
               }}>
                 {safe
-                  ? `Safe stop — ${(r.dTot - cfg.obsDist).toFixed(1)} m before the obstacle`
+                  ? `Safe stop — ${(cfg.obsDist - r.dTot).toFixed(1)} m before the obstacle`
                   : `Collision — impact at ${r.vImpK.toFixed(1)} km/h`}
               </div>
               <div style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 13,
+                fontSize: 14,
                 lineHeight: 1.6,
                 color: 'var(--ink-secondary)',
               }}>
@@ -377,7 +377,7 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
             <div style={{ flexShrink: 0, textAlign: mobile ? 'left' : 'right' }}>
               <div style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 500,
                 letterSpacing: '1.5px',
                 textTransform: 'uppercase',
@@ -389,7 +389,7 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
               </div>
               <div style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: 36,
+                fontSize: 'clamp(36px, 4vw, 48px)',
                 fontWeight: 500,
                 letterSpacing: '-0.5px',
                 lineHeight: 1,
@@ -436,7 +436,7 @@ export default function PreviewScreen({ cfg, onRun, onBack }) {
             </button>
             <p style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 12,
+              fontSize: 13,
               color: 'var(--ink-tertiary)',
               textAlign: 'center',
               margin: 0,

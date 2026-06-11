@@ -36,22 +36,22 @@ export default function LaunchScreen({ onStart }) {
         <rect width="100%" height="100%" fill="url(#grid)" />
       </svg>
 
-      {/* Content column */}
+      {/* Content column — 900px max so headline lands in 2 lines */}
       <div style={{
         position: 'relative',
         width: '100%',
-        maxWidth: 440,
+        maxWidth: 900,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: mobile ? 24 : 32,
+        gap: mobile ? 32 : 48,
         textAlign: 'center',
       }}>
 
         {/* Eyebrow */}
         <div style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: 500,
           letterSpacing: '1.5px',
           textTransform: 'uppercase',
@@ -60,13 +60,13 @@ export default function LaunchScreen({ onStart }) {
           Chasing Horsepower · Leaf Academy
         </div>
 
-        {/* Display headline */}
+        {/* Display headline — clamp scales with viewport, 2 lines on laptop */}
         <div style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: mobile ? 36 : 46,
+          fontSize: 'clamp(40px, 5.5vw, 60px)',
           fontWeight: 500,
-          letterSpacing: '-0.5px',
-          lineHeight: 1.2,
+          letterSpacing: '-1px',
+          lineHeight: 1.12,
           color: 'var(--stage-text)',
         }}>
           Every crash is a conversation between physics and engineering
@@ -75,11 +75,11 @@ export default function LaunchScreen({ onStart }) {
         {/* Quiet sentence */}
         <div style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 16,
+          fontSize: 17,
           fontWeight: 400,
           lineHeight: 1.7,
           color: 'var(--stage-muted)',
-          maxWidth: 380,
+          maxWidth: 520,
         }}>
           Configure a scenario, run the physics, read the investigation.
         </div>
@@ -100,7 +100,6 @@ export default function LaunchScreen({ onStart }) {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
-            marginTop: mobile ? 8 : 16,
             transition: 'background 150ms ease, transform 150ms ease',
           }}
           onMouseEnter={e => { e.currentTarget.style.background = 'var(--ember-600)'; }}
@@ -119,20 +118,20 @@ export default function LaunchScreen({ onStart }) {
           display: 'flex',
           gap: 12,
           width: '100%',
-          marginTop: mobile ? 8 : 16,
+          maxWidth: 520,
         }}>
           {METRICS.map(({ number, label }) => (
             <div key={label} style={{
               flex: 1,
-              padding: '16px 0',
+              padding: '20px 0',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 6,
+              gap: 8,
             }}>
               <div style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: mobile ? 28 : 32,
+                fontSize: 'clamp(32px, 3.2vw, 44px)',
                 fontWeight: 500,
                 letterSpacing: '-0.5px',
                 color: 'var(--stage-text)',
@@ -142,7 +141,7 @@ export default function LaunchScreen({ onStart }) {
               </div>
               <div style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 500,
                 letterSpacing: '1.5px',
                 textTransform: 'uppercase',
