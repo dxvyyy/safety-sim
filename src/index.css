@@ -1,111 +1,118 @@
+@import "tailwindcss";
+
+/* ─── Raw design tokens (§2 + §4 radii) ──────────────────────────────────── */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* Ground */
+  --paper:          #F7F4EE;
+  --surface:        #FFFFFF;
+  --surface-sunken: #F1EDE5;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Ink */
+  --ink:           #1A1714;
+  --ink-secondary: #5C554E;
+  --ink-tertiary:  #938B82;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Hairlines */
+  --hairline:        rgba(26, 23, 20, 0.10);
+  --hairline-strong: rgba(26, 23, 20, 0.18);
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  /* Ember */
+  --ember-50:  #FBF0EA;
+  --ember-100: #F5D9CB;
+  --ember-300: #E89B73;
+  --ember:     #D8572A;
+  --ember-600: #B8431C;
+  --ember-800: #7C2D14;
+  --ember-900: #4A1B0C;
+
+  /* Stage (warm dark) */
+  --stage:          #211C18;
+  --stage-elevated: #2A241F;
+  --stage-text:     #F5EDE8;
+  --stage-muted:    #B0A09A;
+  --stage-hairline: rgba(245, 237, 232, 0.12);
+
+  /* Semantic — outcome meaning only */
+  --safe:       #2F8F5B;
+  --safe-bg:    #E8F3EC;
+  --safe-text:  #1A5435;
+  --fatal:      #C73E33;
+  --fatal-bg:   #FBEAE8;
+  --fatal-text: #7A2019;
+  --warn:       #E0A516;
+  --warn-bg:    #FCF3DD;
+  --warn-text:  #6B4D08;
+
+  /* Radii */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+/* ─── Tailwind theme (§3 fonts + colour/radius utilities) ─────────────────── */
+@theme {
+  /* Fonts */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Courier New", monospace;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+  /* Ground */
+  --color-paper:          var(--paper);
+  --color-surface:        var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+
+  /* Ink */
+  --color-ink:           var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-tertiary:  var(--ink-tertiary);
+
+  /* Hairlines */
+  --color-hairline:        var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+
+  /* Ember */
+  --color-ember-50:  var(--ember-50);
+  --color-ember-100: var(--ember-100);
+  --color-ember-300: var(--ember-300);
+  --color-ember:     var(--ember);
+  --color-ember-600: var(--ember-600);
+  --color-ember-800: var(--ember-800);
+  --color-ember-900: var(--ember-900);
+
+  /* Stage */
+  --color-stage:          var(--stage);
+  --color-stage-elevated: var(--stage-elevated);
+  --color-stage-text:     var(--stage-text);
+  --color-stage-muted:    var(--stage-muted);
+
+  /* Semantic */
+  --color-safe:       var(--safe);
+  --color-safe-bg:    var(--safe-bg);
+  --color-safe-text:  var(--safe-text);
+  --color-fatal:      var(--fatal);
+  --color-fatal-bg:   var(--fatal-bg);
+  --color-fatal-text: var(--fatal-text);
+  --color-warn:       var(--warn);
+  --color-warn-bg:    var(--warn-bg);
+  --color-warn-text:  var(--warn-text);
+
+  /* Border radii (override Tailwind defaults with spec values) */
+  --radius-sm: var(--r-sm);   /* 6px  */
+  --radius-md: var(--r-md);   /* 8px  */
+  --radius-lg: var(--r-lg);   /* 12px */
+  --radius-xl: var(--r-xl);   /* 16px */
 }
+
+/* ─── Base ────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
   margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
-}
+#root { width: 100%; }
