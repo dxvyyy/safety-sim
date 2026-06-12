@@ -1,125 +1,357 @@
-import { useState } from 'react';
-import { C } from '../data/colors.js';
-import { TYPS } from '../data/typologies.js';
+import { useState, useEffect, useRef } from 'react';
 import { useBreakpoint } from '../lib/breakpoint.js';
-import { TopCam, SideCam, FrontCam, RearCam } from '../components/cameras/index.jsx';
 
-const dCol = r => r < 0.15 ? C.green : r < 0.35 ? C.yellow : r < 0.6 ? C.orange : C.red;
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const CAM_DEFS = [
-  { id: 'top',   label: 'TOP-DOWN',   col: C.orange, Comp: TopCam  },
-  { id: 'side',  label: 'SIDE VIEW',  col: C.blue,   Comp: SideCam  },
-  { id: 'front', label: 'DRIVER POV', col: C.green,  Comp: FrontCam },
-  { id: 'rear',  label: 'REAR CHASE', col: C.purple, Comp: RearCam  },
-];
+const PPM          = 10
+const CAR_OFFSET   = 220
+const VIEWPORT_W   = 800
+const VIEWPORT_H   = 450
+const ROAD_Y       = 175
+const ROAD_H       = 100
+const ROAD_CY      = ROAD_Y + ROAD_H / 2   // 225
+const CAR_W        = 44
+const CAR_H        = 24
+const REACTION_FRAC = 0.28
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function lerp(a, b, t) { return a + (b - a) * Math.min(1, Math.max(0, t)); }
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+function computeVehicleNorm(prog, res, cfg) {
+  const rn = Math.min(res.dR / cfg.obsDist, 1);
+  const fn = res.hit ? 1.0 : Math.min(res.dTot / cfg.obsDist, 1);
+  let vn;
+  if (prog <= REACTION_FRAC) {
+    vn = (prog / REACTION_FRAC) * rn;
+  } else {
+    const bp = (prog - REACTION_FRAC) / (1 - REACTION_FRAC);
+    vn = rn + bp * (fn - rn);
+  }
+  return Math.min(vn, fn);
+}
+
+function computeLiveSpeed(prog, res, cfg) {
+  if (prog <= REACTION_FRAC) return cfg.speed;
+  const bp = (prog - REACTION_FRAC) / (1 - REACTION_FRAC);
+  const vStart = cfg.sys.aeb ? cfg.speed * 0.45 : cfg.speed;
+  const vEnd = res.hit ? (res.vImpK ?? 0) : 0;
+  return lerp(vStart, vEnd, bp);
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function SimulationScreen({ cfg, res, prog, running, onResults, onBack }) {
-  const [activeCam, setActiveCam] = useState('top');
-  const ActiveComp = CAM_DEFS.find(c => c.id === activeCam)?.Comp || TopCam;
-  const done = prog >= 0.98 && !running;
-  const bp = useBreakpoint();
-  const mobile = bp === 'mobile';
+  const mobile = useBreakpoint() === 'mobile';
+
+  // All hooks before null guard
+  const [vb, setVb] = useState({ x: -CAR_OFFSET, w: VIEWPORT_W });
+  const [labelVisible, setLabelVisible] = useState(false);
+  const [pullbackDone, setPullbackDone] = useState(false);
+
+  const pbRafRef     = useRef(null);
+  const prevRunning  = useRef(false);
+
+  // Reset on sim restart
+  useEffect(() => {
+    const was = prevRunning.current;
+    prevRunning.current = running;
+    if (!was && running) {
+      if (pbRafRef.current) cancelAnimationFrame(pbRafRef.current);
+      setVb({ x: -CAR_OFFSET, w: VIEWPORT_W });
+      setLabelVisible(false);
+      setPullbackDone(false);
+    }
+  }, [running]);
+
+  // Pan viewBox during sim
+  useEffect(() => {
+    if (!res || !running) return;
+    const vn = computeVehicleNorm(prog, res, cfg);
+    const carWorldX = vn * cfg.obsDist * PPM;
+    setVb(prev => ({ ...prev, x: Math.max(-CAR_OFFSET, carWorldX - CAR_OFFSET) }));
+  }, [prog, running, res, cfg]);
+
+  // Pull-back on completion
+  const done = prog >= 1 && !running;
+  useEffect(() => {
+    if (!done || !res) return;
+    if (pbRafRef.current) cancelAnimationFrame(pbRafRef.current);
+
+    const vn = computeVehicleNorm(1, res, cfg);
+    const carWorldX = vn * cfg.obsDist * PPM;
+    const startX = Math.max(-CAR_OFFSET, carWorldX - CAR_OFFSET);
+    const endX   = -80;
+    const endW   = cfg.obsDist * PPM + 240;
+    const DUR    = 900;
+    let t0 = null;
+
+    const animate = ts => {
+      if (!t0) t0 = ts;
+      const t = Math.min((ts - t0) / DUR, 1);
+      const e = easeOutCubic(t);
+      setVb({ x: lerp(startX, endX, e), w: lerp(VIEWPORT_W, endW, e) });
+      if (t < 1) {
+        pbRafRef.current = requestAnimationFrame(animate);
+      } else {
+        setPullbackDone(true);
+        setLabelVisible(true);
+      }
+    };
+    pbRafRef.current = requestAnimationFrame(animate);
+    return () => { if (pbRafRef.current) cancelAnimationFrame(pbRafRef.current); };
+  }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Null guard ──
+  if (!res) return null;
+
+  // ── Derived ──
+  const vn             = computeVehicleNorm(prog, res, cfg);
+  const carWorldX      = vn * cfg.obsDist * PPM;
+  const reactionEndX   = (res.dR ?? 0) * PPM;
+  const obstacleWorldX = cfg.obsDist * PPM;
+  const isBraking      = prog > REACTION_FRAC;
+  const hasCrashed     = done && res.hit;
+  const liveSpeed      = computeLiveSpeed(prog, res, cfg);
+  const phase          = prog <= REACTION_FRAC ? 'Reaction' : done ? (res.hit ? 'Impact' : 'Stopped') : 'Braking';
+
+  // ViewBox string + scale for viewport-fixed elements
+  const viewBox  = `${vb.x.toFixed(1)} 0 ${vb.w.toFixed(1)} ${VIEWPORT_H}`;
+  const vs       = vb.w / VIEWPORT_W;   // viewScale: SVG units per apparent px
+
+  // Trail dimensions
+  const rxTrailW = Math.max(0, Math.min(carWorldX, reactionEndX));
+  const bkTrailW = Math.max(0, carWorldX - reactionEndX);
+
+  // Car rect
+  const carX = carWorldX;
+  const carY = ROAD_CY - CAR_H / 2;
+
   return (
-    <div style={{ height: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <style>{`@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.35;transform:scale(0.7)}}`}</style>
-      <div style={{ background: C.panel, borderBottom: `1px solid ${C.border}`, padding: mobile ? '8px 12px' : '10px 18px', display: 'flex', alignItems: 'center', gap: mobile ? 8 : 14, flexShrink: 0, flexWrap: 'wrap' }}>
+    <div style={{
+      height: '100dvh',
+      background: 'var(--stage)',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+    }}>
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <header style={{
+        height: 56,
+        flexShrink: 0,
+        background: 'rgba(33,28,24,0.72)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderBottom: '0.5px solid var(--stage-hairline)',
+        display: 'flex',
+        alignItems: 'center',
+        padding: mobile ? '0 16px' : '0 24px',
+        gap: 10,
+      }}>
         <div>
-          <div style={{ color: C.orange, fontSize: 10, fontWeight: 800, letterSpacing: 3 }}>CHASING HORSEPOWER</div>
-          <div style={{ color: C.muted, fontSize: 9 }}>Live Simulation — {TYPS.find(t => t.id === cfg.typology)?.name || 'Scenario'}</div>
+          <div style={{
+            fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 500,
+            letterSpacing: '1.5px', textTransform: 'uppercase',
+            color: 'var(--stage-muted)', lineHeight: 1,
+          }}>Chasing Horsepower</div>
+          <div style={{
+            fontFamily: 'var(--font-sans)', fontSize: 13,
+            color: 'var(--stage-muted)', marginTop: 2,
+          }}>Simulation</div>
         </div>
         <div style={{ flex: 1 }} />
-        {running && <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.orange, animation: 'pulse 0.8s infinite' }} />
-          <span style={{ color: C.orange, fontSize: 11, fontWeight: 700, letterSpacing: 2 }}>SIMULATING</span>
-        </div>}
-        {done && <button onClick={onResults} style={{
-          background: C.orange, color: '#fff', border: 'none', borderRadius: 7,
-          padding: mobile ? '6px 14px' : '8px 22px', fontSize: 12, fontWeight: 800, letterSpacing: 2, cursor: 'pointer',
-        }}>VIEW ANALYSIS →</button>}
-        {!running && <button onClick={onBack} style={{ background: 'transparent', color: C.muted, border: `1px solid ${C.border}`, borderRadius: 6, padding: '7px 14px', fontSize: 11, cursor: 'pointer' }}>← Edit</button>}
-      </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: mobile ? 'column' : 'row', overflow: 'hidden' }}>
-        {/* Main camera + physics strip */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div style={{
-            flex: 1, background: '#080A0E',
-            borderRight: mobile ? 'none' : `1px solid ${C.border}`,
-            borderBottom: mobile ? `1px solid ${C.border}` : 'none',
-            overflow: 'hidden', display: 'flex', alignItems: 'center',
-          }}>
-            <ActiveComp res={res} prog={prog} cfg={cfg} h={mobile ? 220 : 420} />
-          </div>
-          <div style={{ background: C.panel, borderTop: `1px solid ${C.border}`, borderRight: mobile ? 'none' : `1px solid ${C.border}`, padding: mobile ? '8px 12px' : '10px 18px', flexShrink: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ color: C.muted, fontSize: 9, letterSpacing: 1.5, fontWeight: 700 }}>SIMULATION PROGRESS</span>
-              <span style={{ color: C.muted, fontSize: 9, fontFamily: 'monospace' }}>{Math.round(prog * 100)}%</span>
-            </div>
-            <div style={{ background: C.deep, borderRadius: 3, height: 4, overflow: 'hidden', marginBottom: 10 }}>
-              <div style={{ background: `linear-gradient(90deg,${C.blue},${C.orange})`, width: `${prog * 100}%`, height: '100%', transition: 'width 0.05s' }} />
-            </div>
-            {res && <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: mobile ? 6 : 10 }}>
-              {[
-                ['Reaction Dist', `${res.dR.toFixed(1)} m`, C.yellow],
-                ['Brake Dist', `${res.dB.toFixed(1)} m`, C.orange],
-                ['Impact speed', res.hit ? `${res.vImpK.toFixed(1)} km/h` : 'None', res.hit ? C.red : C.green],
-                ['Delta-V cabin', res.hit ? `${res.dvK.toFixed(1)} km/h` : 'None', res.hit ? C.red : C.green],
-              ].map(([l, v, col]) => (
-                <div key={l} style={{ textAlign: 'center', background: C.deep, borderRadius: 5, padding: '5px 4px' }}>
-                  <div style={{ color: C.muted, fontSize: 8.5 }}>{l}</div>
-                  <div style={{ color: col, fontFamily: 'monospace', fontSize: mobile ? 11 : 12, fontWeight: 800, marginTop: 1 }}>{v}</div>
-                </div>
-              ))}
-            </div>}
-          </div>
-        </div>
-        {/* Camera thumbnails */}
-        <div style={{
-          width: mobile ? '100%' : 220,
-          background: C.panel,
-          display: 'flex',
-          flexDirection: mobile ? 'row' : 'column',
-          overflow: 'auto',
-          flexShrink: 0,
-          borderTop: mobile ? `1px solid ${C.border}` : 'none',
-        }}>
-          {!mobile && <div style={{ padding: '10px 12px 6px', color: C.muted, fontSize: 9, fontWeight: 700, letterSpacing: 2 }}>CAMERA ANGLES</div>}
-          {CAM_DEFS.map(cam => {
-            const isActive = activeCam === cam.id;
+        {done && (
+          <button onClick={onResults} style={{
+            fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
+            background: 'var(--ember)', color: 'var(--stage)',
+            border: 'none', borderRadius: 'var(--r-sm)',
+            padding: '7px 16px', cursor: 'pointer',
+            transition: 'background 150ms ease',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--ember-600)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--ember)'; }}
+          >View results →</button>
+        )}
+        <button onClick={onBack} style={{
+          fontFamily: 'var(--font-sans)', fontSize: 13,
+          background: 'transparent', color: 'var(--stage-muted)',
+          border: '0.5px solid var(--stage-hairline)', borderRadius: 'var(--r-sm)',
+          padding: '6px 14px', cursor: 'pointer',
+        }}>← Back</button>
+      </header>
+
+      {/* ── SVG viewport ────────────────────────────────────────────────────── */}
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <svg
+          viewBox={viewBox}
+          preserveAspectRatio="xMidYMid meet"
+          style={{ width: '100%', height: '100%', display: 'block' }}
+        >
+          <defs>
+            <pattern id="sim-grid" width="50" height="50" patternUnits="userSpaceOnUse">
+              <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(255,255,255,0.025)" strokeWidth="0.5"/>
+            </pattern>
+          </defs>
+
+          {/* Background */}
+          <rect x={vb.x} y={0} width={vb.w} height={VIEWPORT_H} fill="#1A1C1F"/>
+          <rect x={vb.x} y={0} width={vb.w} height={VIEWPORT_H} fill="url(#sim-grid)"/>
+
+          {/* Road */}
+          <rect x={vb.x - 200} y={ROAD_Y} width={vb.w + 400} height={ROAD_H} fill="#26282D"/>
+          <line x1={vb.x - 200} y1={ROAD_Y}          x2={vb.x + vb.w + 200} y2={ROAD_Y}
+            stroke="rgba(245,237,232,0.15)" strokeWidth="1.5"/>
+          <line x1={vb.x - 200} y1={ROAD_Y + ROAD_H} x2={vb.x + vb.w + 200} y2={ROAD_Y + ROAD_H}
+            stroke="rgba(245,237,232,0.15)" strokeWidth="1.5"/>
+          <line x1={vb.x - 200} y1={ROAD_CY}         x2={vb.x + vb.w + 200} y2={ROAD_CY}
+            stroke="rgba(245,237,232,0.07)" strokeWidth="1" strokeDasharray="24 18"/>
+
+          {/* ── Painted trails ─────────────────────────────────────────────── */}
+          {rxTrailW > 0 && (
+            <rect x={0} y={ROAD_Y} width={rxTrailW} height={ROAD_H} fill="rgba(224,165,22,0.22)"/>
+          )}
+          {bkTrailW > 0 && (
+            <rect x={reactionEndX} y={ROAD_Y} width={bkTrailW} height={ROAD_H} fill="rgba(216,87,42,0.28)"/>
+          )}
+
+          {/* ── Distance markers ───────────────────────────────────────────── */}
+          {labelVisible && [0.25, 0.5, 0.75, 1.0].map(frac => {
+            const wx = frac * obstacleWorldX;
             return (
-              <div key={cam.id} onClick={() => setActiveCam(cam.id)}
-                style={{
-                  border: `2px solid ${isActive ? cam.col : 'transparent'}`,
-                  borderRadius: 6,
-                  margin: mobile ? '4px' : '4px 8px',
-                  overflow: 'hidden', cursor: 'pointer',
-                  transition: 'border-color 0.15s', background: '#080A0E',
-                  flexShrink: 0,
-                  width: mobile ? 120 : undefined,
-                }}>
-                <cam.Comp res={res} prog={prog} cfg={cfg} h={mobile ? 80 : 115} />
-                <div style={{
-                  background: isActive ? `${cam.col}20` : C.deep,
-                  padding: '4px 6px', borderTop: `1px solid ${isActive ? cam.col : C.border}`,
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                }}>
-                  <span style={{ color: isActive ? cam.col : C.muted, fontSize: 8, fontWeight: 700, letterSpacing: 1 }}>{cam.label}</span>
-                  {isActive && <span style={{ color: cam.col, fontSize: 7, fontWeight: 700 }}>ACTIVE</span>}
-                </div>
-              </div>
+              <g key={frac}>
+                <line x1={wx} y1={ROAD_Y - 8} x2={wx} y2={ROAD_Y}
+                  stroke="rgba(245,237,232,0.22)" strokeWidth="0.75"/>
+                <text x={wx} y={ROAD_Y - 14}
+                  fontFamily="var(--font-mono)" fontSize={8 * vs}
+                  fill="rgba(245,237,232,0.38)" textAnchor="middle">
+                  {Math.round(frac * cfg.obsDist)}m
+                </text>
+              </g>
             );
           })}
-          {!mobile && done && res && (
-            <div style={{ margin: '12px 8px', background: res.hit ? `${C.red}10` : `${C.green}10`, border: `1px solid ${res.hit ? C.red : C.green}35`, borderRadius: 7, padding: '10px 12px' }}>
-              <div style={{ color: res.hit ? C.red : C.green, fontSize: 12, fontWeight: 800, marginBottom: 4 }}>{res.hit ? '● COLLISION' : '✓ SAFE STOP'}</div>
-              {res.hit && <>
-                <div style={{ color: C.muted, fontSize: 9.5, marginBottom: 2 }}>Impact: <span style={{ color: C.red, fontFamily: 'monospace' }}>{res.vImpK.toFixed(1)} km/h</span></div>
-                <div style={{ color: C.muted, fontSize: 9.5 }}>Fatality risk: <span style={{ color: dCol(res.fRisk), fontFamily: 'monospace' }}>{Math.round(res.fRisk * 100)}%</span></div>
-              </>}
-              {!res.hit && <div style={{ color: C.muted, fontSize: 9.5 }}>Stopped {(res.dTot - cfg.obsDist).toFixed(1)}m short</div>}
-            </div>
+
+          {/* ── Obstacle ───────────────────────────────────────────────────── */}
+          <rect
+            x={obstacleWorldX - 2} y={ROAD_CY - 18}
+            width={36} height={36} rx={3}
+            fill="#3A3D45" stroke="rgba(245,237,232,0.22)" strokeWidth="1"
+          />
+
+          {/* ── AEB cone ───────────────────────────────────────────────────── */}
+          {isBraking && cfg.sys.aeb && !hasCrashed && (
+            <polygon
+              points={`${carX + CAR_W},${ROAD_CY} ${carX + CAR_W + 120},${ROAD_CY - 36} ${carX + CAR_W + 120},${ROAD_CY + 36}`}
+              fill="rgba(224,165,22,0.11)"
+              stroke="rgba(224,165,22,0.32)"
+              strokeWidth="0.5"
+            />
           )}
-        </div>
+
+          {/* ── Vehicle ────────────────────────────────────────────────────── */}
+          {/* Body */}
+          <rect x={carX} y={carY} width={CAR_W} height={CAR_H} rx={5}
+            fill="#C8C2BA" stroke="rgba(255,255,255,0.15)" strokeWidth="0.75"/>
+          {/* Windshield */}
+          <rect x={carX + 26} y={carY + 4} width={14} height={16} rx={2}
+            fill="rgba(120,160,200,0.5)"/>
+          {/* Headlights */}
+          <rect x={carX + CAR_W - 4} y={carY + 3}          width={4} height={6} rx={1} fill="rgba(255,240,180,0.65)"/>
+          <rect x={carX + CAR_W - 4} y={carY + CAR_H - 9}  width={4} height={6} rx={1} fill="rgba(255,240,180,0.65)"/>
+          {/* Brake lights */}
+          {isBraking && (
+            <>
+              <rect x={carX} y={carY + 3}         width={5} height={6} rx={1.5} fill="#C73E33"/>
+              <rect x={carX} y={carY + CAR_H - 9} width={5} height={6} rx={1.5} fill="#C73E33"/>
+            </>
+          )}
+
+          {/* ── Crash overlay ──────────────────────────────────────────────── */}
+          {hasCrashed && (
+            <>
+              <circle cx={obstacleWorldX + 8} cy={ROAD_CY} r={38} fill="rgba(199,62,51,0.30)"/>
+              <circle cx={obstacleWorldX + 8} cy={ROAD_CY} r={20} fill="rgba(255,110,70,0.50)"/>
+            </>
+          )}
+
+          {/* ── Camera badge (viewport-fixed) ──────────────────────────────── */}
+          <text
+            x={vb.x + 11 * vs} y={18 * vs}
+            fontFamily="var(--font-mono)" fontSize={9 * vs}
+            fontWeight="500" fill="rgba(245,237,232,0.38)" letterSpacing="1"
+          >TOP-DOWN · SCALED 1:1</text>
+
+        </svg>
+
+        {/* Crash label — DOM overlay */}
+        {hasCrashed && labelVisible && (
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontFamily: 'var(--font-sans)', fontSize: mobile ? 18 : 22, fontWeight: 500,
+            color: 'var(--fatal-text)', background: 'var(--fatal-bg)',
+            padding: '10px 22px', borderRadius: 'var(--r-sm)',
+            pointerEvents: 'none',
+          }}>
+            Impact at {(res.vImpK ?? 0).toFixed(1)} km/h
+          </div>
+        )}
       </div>
+
+      {/* ── Progress bar ────────────────────────────────────────────────────── */}
+      <div style={{ height: 4, background: 'var(--stage-elevated)', flexShrink: 0 }}>
+        <div style={{
+          height: '100%',
+          width: `${prog * 100}%`,
+          background: hasCrashed ? '#C73E33' : 'var(--ember)',
+          transition: 'width 80ms linear',
+        }}/>
+      </div>
+
+      {/* ── Physics strip ───────────────────────────────────────────────────── */}
+      <div style={{
+        flexShrink: 0,
+        background: 'var(--stage-elevated)',
+        borderTop: '0.5px solid var(--stage-hairline)',
+        display: 'flex',
+        alignItems: 'center',
+        padding: mobile ? '10px 16px' : '10px 24px',
+        gap: mobile ? 16 : 32,
+        overflowX: 'auto',
+      }}>
+        {[
+          { label: 'Phase',    value: phase },
+          { label: 'Speed',    value: `${liveSpeed.toFixed(1)} km/h` },
+          { label: 'Distance', value: `${(vn * cfg.obsDist).toFixed(1)} m` },
+          { label: 'AEB',      value: cfg.sys.aeb ? 'Active' : 'Off' },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
+            <div style={{
+              fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 500,
+              letterSpacing: '1.2px', textTransform: 'uppercase', color: 'var(--stage-muted)',
+            }}>{label}</div>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 500,
+              color: 'var(--stage-text)',
+            }}>{value}</div>
+          </div>
+        ))}
+        <div style={{ flex: 1 }}/>
+        {done && !mobile && (
+          <button onClick={onResults} style={{
+            fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
+            background: 'var(--ember)', color: 'var(--stage)',
+            border: 'none', borderRadius: 'var(--r-sm)',
+            padding: '7px 16px', cursor: 'pointer',
+            transition: 'background 150ms ease',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--ember-600)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--ember)'; }}
+          >View results →</button>
+        )}
+      </div>
+
     </div>
   );
 }
